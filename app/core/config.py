@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # AI
     OPENAI_API_KEY: str = ""
     
+    # Google Gemini (for Image Generation)
+    GOOGLE_CLOUD_API_KEY: str = ""
+    
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE) if ENV_FILE.exists() else ".env",
         env_file_encoding="utf-8",

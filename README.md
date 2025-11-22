@@ -84,6 +84,9 @@ ADMIN_API_KEY=your_secure_admin_api_key_here
 
 # OpenAI API Configuration
 OPENAI_API_KEY=your_openai_api_key_here
+
+# Google Gemini API Key (for image generation)
+GOOGLE_CLOUD_API_KEY=your_gemini_api_key_here
 ```
 
 **Environment Variables Explained:**
@@ -193,6 +196,39 @@ All admin endpoints require the `X-Admin-Key` header with your `ADMIN_API_KEY`.
 - `GET /admin/tools` - List all tools
 - `GET /admin/tools/{name}` - Get tool configuration
 - `PATCH /admin/tools/{name}` - Update tool settings
+
+## Available Tools
+
+### Built-in Tools
+
+1. **my_tool** (Free tier)
+   - Simple demo tool that processes text with a prefix
+
+2. **calculator** (Free tier)
+   - Performs basic mathematical calculations
+
+3. **text_to_image** (Plus tier)
+   - Generates images from text descriptions using Gemini Nano Banana API
+   - Requires Gemini API key
+
+4. **image_to_image** (Pro tier)
+   - Transforms existing images based on text instructions
+   - Applies styles, edits, and creates variations
+   - Uses Gemini Nano Banana API
+
+## Testing Image Generation Tools
+
+To test the image generation tools, run:
+
+```bash
+uv run test_image_tools.py
+```
+
+This will:
+- Check if `GOOGLE_CLOUD_API_KEY` is configured
+- Test text-to-image generation
+- Test image-to-image transformation
+- Show detailed results for each test
 
 ### Stats
 - `GET /admin/stats` - Get system statistics

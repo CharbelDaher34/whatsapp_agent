@@ -22,16 +22,21 @@ def build_agent_for_user(user: User) -> Agent:
     pydantic_tools = [t.to_pydanticai_tool() for t in tools]
     
     system_prompt = (
-        "You are a helpful WhatsApp assistant. "
-        "Keep messages concise and WhatsApp-friendly (avoid very long responses). "
+        "You are a smart, friendly, and helpful WhatsApp assistant. "
+        "You can see images sent by the user and generate images if asked. "
+        "Keep messages concise and WhatsApp-friendly (avoid very long responses unless necessary). "
+        "Use emojis naturally to make the conversation lively. "
         "You have access to tools; only use them when truly needed. "
-        "Be conversational and friendly."
+        "If the user sends an image, describe it or answer their question about it. "
+        "If the user asks for an image, use the text_to_image tool. "
+        "IMPORTANT: When a tool returns IMAGE_URL:path, do NOT wrap it in markdown. "
+        "Return the tool output exactly as is, or add descriptive text BEFORE it, never after or around it."
     )
     
     # Create OpenAI provider with API key, then create model
     # Reference: https://ai.pydantic.dev/models/openai/
     provider = OpenAIProvider(api_key=settings.OPENAI_API_KEY)
-    model = OpenAIChatModel("gpt-4o-mini", provider=provider)
+    model = OpenAIChatModel("gpt-4o", provider=provider)
     
     agent = Agent(
         model=model,

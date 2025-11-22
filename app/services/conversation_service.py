@@ -26,12 +26,16 @@ def get_or_create_active_conversation(session: Session, user: User) -> Conversat
 
 
 def get_conversation_history(session: Session, conversation: Conversation) -> List[str]:
-    """Get formatted conversation history."""
+    """Get formatted conversation history (last 2 messages only)."""
     msgs = session.exec(
         select(Message)
         .where(Message.conversation_id == conversation.id)
-        .order_by(Message.created_at)
+        .order_by(Message.created_at.desc())
+        .limit(2)
     ).all()
+    
+    # Reverse to get chronological order
+    msgs = list(reversed(msgs))
     
     history = []
     for m in msgs:

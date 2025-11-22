@@ -3,7 +3,8 @@ from typing import Dict, List
 from app.tools.base import BaseTool
 from app.models.user import User
 from app.tools.builtin.my_tool import MyTool
-from app.tools.builtin.calculator import CalculatorTool
+from app.tools.builtin.text_to_image import TextToImageTool
+from app.tools.builtin.image_to_image import ImageToImageTool
 
 # Global registry
 _TOOL_INSTANCES: Dict[str, BaseTool] = {}
@@ -16,7 +17,9 @@ def init_tools():
     """
     for tool in [
         MyTool(),
-        CalculatorTool(),
+        # CalculatorTool(),
+        TextToImageTool(),
+        ImageToImageTool(),
     ]:
         _TOOL_INSTANCES[tool.name] = tool
 
