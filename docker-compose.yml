@@ -1,0 +1,106 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: whatsapp_bot_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-whatsapp_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-whatsapp_bot_password}
+      POSTGRES_DB: ${POSTGRES_DB:-whatsapp_bot}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # ports:
+    #   - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-whatsapp_bot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - whatsapp_network
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: whatsapp_bot_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - whatsapp_network
+
+  # WhatsApp Bot Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whatsapp_bot_app
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-whatsapp_bot}:${POSTGRES_PASSWORD:-whatsapp_bot_password}@postgres:5432/${POSTGRES_DB:-whatsapp_bot}
+      - REDIS_URL=redis://redis:6379/0
+      - TUNNEL_METHOD=ngrok
+      - NGROK_DOMAIN=${NGROK_DOMAIN}
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+      - PORT=7349
+    ports:
+      - "7349:7349"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # no restart, not unless stopped
+    restart: unless-stopped
+    networks:
+      - whatsapp_network
+    volumes:
+      - ./images:/app/images
+      - ./logs:/app/logs
+
+  # Background Worker for async processing
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Note: container_name removed to allow multiple replicas
+    command: uv run python -m app.queue.worker
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-whatsapp_bot}:${POSTGRES_PASSWORD:-whatsapp_bot_password}@postgres:5432/${POSTGRES_DB:-whatsapp_bot}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - whatsapp_network
+    volumes:
+      - ./images:/app/images
+      - ./logs:/app/logs
+    deploy:
+      replicas: 2  # Run 2 worker instances
+
+networks:
+  whatsapp_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+

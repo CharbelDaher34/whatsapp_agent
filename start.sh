@@ -1,31 +1,16 @@
 #!/bin/bash
-# Quick start script for WhatsApp Bot with serveo.net tunnel
+# Quick start script for WhatsApp Bot with tunnel support
 
-# echo "🤖 Starting WhatsApp Bot Setup..."
-
-# # Check if .env exists
-# if [ ! -f .env ]; then
-#     echo "⚠️  .env file not found!"
-#     if [ -f env.example ]; then
-#         echo "📝 Creating .env from env.example..."
-#         cp env.example .env
-#         echo "⚠️  Please edit .env file with your credentials before running the bot"
-#         echo "   Required: WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, OPENAI_API_KEY"
-#         exit 1
-#     else
-#         echo "❌ env.example not found. Please create .env file manually."
-#         echo "   See README.md for required environment variables."
-#         exit 1
-#     fi
-# fi
-
-# # Install dependencies
-# echo "📦 Installing dependencies..."
-# uv sync
+# Configuration
+PORT=${PORT:-7349}
+TUNNEL_METHOD=${TUNNEL_METHOD:-"auto"}  # auto, ngrok, serveo, localtunnel, cloudflared
+NGROK_DOMAIN=${NGROK_DOMAIN:-""}  # Set your ngrok reserved domain here
+SERVEO_SUBDOMAIN=${SERVEO_SUBDOMAIN:-""}  # Set your preferred serveo subdomain
+CLOUDFLARED_TUNNEL=${CLOUDFLARED_TUNNEL:-""}  # Set your cloudflared tunnel name
 
 # Start the FastAPI application in the background
-echo "🚀 Starting WhatsApp Bot on port 8000..."
-uv run uvicorn app.main:app --host 0.0.0.0 --port 7349 &
+echo "🚀 Starting WhatsApp Bot on port $PORT..."
+uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT &
 APP_PID=$!
 
 # Wait for the app to start
@@ -38,97 +23,167 @@ if ! kill -0 $APP_PID 2>/dev/null; then
     exit 1
 fi
 
-echo "✅ Application is running on http://localhost:7349"
-echo "📚 API Docs: http://localhost:7349/docs"
+echo "✅ Application is running on http://localhost:$PORT"
+echo "📚 API Docs: http://localhost:$PORT/docs"
 echo ""
 echo "🌐 Creating public tunnel..."
 echo "   This will expose your local server to the internet for WhatsApp webhook"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Your public URL will appear below - use it for WhatsApp webhook!"
-echo "Example: https://your-name.serveo.net/webhook"
+echo "📍 Tunnel Method: $TUNNEL_METHOD"
+if [ -n "$NGROK_DOMAIN" ]; then
+    echo "📍 ngrok Domain: $NGROK_DOMAIN"
+fi
+if [ -n "$SERVEO_SUBDOMAIN" ]; then
+    echo "📍 Serveo Subdomain: $SERVEO_SUBDOMAIN"
+fi
+if [ -n "$CLOUDFLARED_TUNNEL" ]; then
+    echo "📍 Cloudflare Tunnel: $CLOUDFLARED_TUNNEL"
+fi
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Try serveo.net first
-timeout 10 ssh -R 80:localhost:7349 serveo.net 2>/dev/null
-SERVEO_EXIT=$?
-
-# If serveo.net fails, try localtunnel (lt)
-if [ $SERVEO_EXIT -ne 0 ]; then
-    echo ""
-    echo "⚠️  serveo.net connection failed"
-    echo "🔄 Falling back to localtunnel..."
-    echo ""
+# Function to start ngrok with fixed domain
+start_ngrok() {
+    # Authenticate ngrok if authtoken is provided
+    if [ -n "$NGROK_AUTHTOKEN" ]; then
+        echo "🔐 Authenticating ngrok..."
+        ngrok config add-authtoken $NGROK_AUTHTOKEN
+    fi
     
-    # Check if localtunnel is installed
-    if command -v lt &> /dev/null; then
+    if [ -n "$NGROK_DOMAIN" ]; then
+        echo "🔗 Starting ngrok with fixed domain: $NGROK_DOMAIN"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "Starting localtunnel..."
-        echo "Your webhook URL: https://YOUR-URL.loca.lt/webhook"
+        echo "✅ Your FIXED webhook URL: https://$NGROK_DOMAIN/webhook"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo ""
-        lt --port 7349
-        LT_EXIT=$?
-        
-        # If localtunnel fails, fall back to ngrok
-        if [ $LT_EXIT -ne 0 ]; then
+        ngrok http --domain=$NGROK_DOMAIN $PORT
+    else
+        echo "🔗 Starting ngrok (random domain)..."
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "⚠️  Using random domain. Set NGROK_DOMAIN for fixed URL"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo ""
-            echo "⚠️  localtunnel connection failed"
-            echo "🔄 Falling back to ngrok..."
-            echo ""
-            
-            # Check if ngrok is installed
-            if command -v ngrok &> /dev/null; then
+        ngrok http $PORT
+    fi
+}
+
+# Function to start serveo with custom subdomain
+start_serveo() {
+    if [ -n "$SERVEO_SUBDOMAIN" ]; then
+        echo "🔗 Starting serveo with custom subdomain: $SERVEO_SUBDOMAIN"
                 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                echo "Starting ngrok tunnel..."
-                echo "Your webhook URL: https://YOUR-URL.ngrok.io/webhook"
+        echo "✅ Your FIXED webhook URL: https://$SERVEO_SUBDOMAIN.serveo.net/webhook"
                 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                 echo ""
-                ngrok http 7349
+        ssh -R $SERVEO_SUBDOMAIN:80:localhost:$PORT serveo.net
             else
+        echo "🔗 Starting serveo (random subdomain)..."
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "⚠️  Using random subdomain. Set SERVEO_SUBDOMAIN for fixed URL"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                 echo ""
-                echo "❌ All tunnel options failed. Please install one of:"
+        ssh -R 80:localhost:$PORT serveo.net
+    fi
+}
+
+# Function to start localtunnel
+start_localtunnel() {
+    echo "🔗 Starting localtunnel..."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "⚠️  localtunnel uses random domains"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                 echo ""
-                echo "  localtunnel: npm install -g localtunnel"
-                echo "  ngrok: https://ngrok.com/download"
+    lt --port $PORT
+}
+
+# Function to start cloudflared
+start_cloudflared() {
+    if [ -n "$CLOUDFLARED_TUNNEL" ]; then
+        echo "🔗 Starting Cloudflare Tunnel: $CLOUDFLARED_TUNNEL"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "✅ Your FIXED webhook URL: https://$CLOUDFLARED_TUNNEL/webhook"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                 echo ""
-                echo "Or manually expose with:"
-                echo "  ssh -R 80:localhost:7349 serveo.net"
+        cloudflared tunnel --url localhost:$PORT run $CLOUDFLARED_TUNNEL
+    else
+        echo "🔗 Starting Cloudflare Quick Tunnel..."
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "⚠️  Using quick tunnel (random domain)"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                 echo ""
-                echo "App is still running on http://localhost:7349"
-                echo "Press Ctrl+C to stop..."
+        cloudflared tunnel --url localhost:$PORT
+    fi
+}
+
+# Main tunnel logic based on TUNNEL_METHOD
+case "$TUNNEL_METHOD" in
+    ngrok)
+        if command -v ngrok &> /dev/null; then
+            start_ngrok
+        else
+            echo "❌ ngrok not found. Install: https://ngrok.com/download"
+            echo "App is still running on http://localhost:$PORT"
                 wait $APP_PID
             fi
-        fi
+        ;;
+    serveo)
+        start_serveo
+        ;;
+    localtunnel)
+        if command -v lt &> /dev/null; then
+            start_localtunnel
     else
-        echo "⚠️  localtunnel not found, trying ngrok..."
-        echo ""
-        
-        # Check if ngrok is installed
+            echo "❌ localtunnel not found. Install: npm install -g localtunnel"
+            echo "App is still running on http://localhost:$PORT"
+            wait $APP_PID
+        fi
+        ;;
+    cloudflared)
+        if command -v cloudflared &> /dev/null; then
+            start_cloudflared
+        else
+            echo "❌ cloudflared not found. Install: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/"
+            echo "App is still running on http://localhost:$PORT"
+            wait $APP_PID
+        fi
+        ;;
+    auto)
+        # Try ngrok first (best for fixed domains)
         if command -v ngrok &> /dev/null; then
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "Starting ngrok tunnel..."
-            echo "Your webhook URL: https://YOUR-URL.ngrok.io/webhook"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-            ngrok http 7349
+            start_ngrok
+        # Try cloudflared (also supports fixed domains)
+        elif command -v cloudflared &> /dev/null; then
+            start_cloudflared
+        # Try serveo (supports custom subdomains)
+        elif timeout 10 ssh -o ConnectTimeout=5 serveo.net exit 2>/dev/null; then
+            start_serveo
+        # Try localtunnel
+        elif command -v lt &> /dev/null; then
+            start_localtunnel
         else
             echo ""
             echo "❌ No tunnel tools available. Please install one of:"
             echo ""
+            echo "  ngrok (recommended): https://ngrok.com/download"
+            echo "  cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/"
             echo "  localtunnel: npm install -g localtunnel"
-            echo "  ngrok: https://ngrok.com/download"
             echo ""
             echo "Or manually expose with:"
-            echo "  ssh -R 80:localhost:7349 serveo.net"
+            echo "  ssh -R 80:localhost:$PORT serveo.net"
             echo ""
-            echo "App is still running on http://localhost:7349"
+            echo "App is still running on http://localhost:$PORT"
             echo "Press Ctrl+C to stop..."
             wait $APP_PID
         fi
-    fi
-fi
+        ;;
+    *)
+        echo "❌ Invalid TUNNEL_METHOD: $TUNNEL_METHOD"
+        echo "Valid options: auto, ngrok, serveo, localtunnel, cloudflared"
+        echo "App is still running on http://localhost:$PORT"
+        wait $APP_PID
+        ;;
+esac
 
 # If tunnel is closed, also stop the app
 echo ""

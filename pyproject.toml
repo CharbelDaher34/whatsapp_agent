@@ -16,4 +16,13 @@ dependencies = [
     "python-multipart>=0.0.20",
     "sqlmodel>=0.0.27",
     "uvicorn[standard]>=0.38.0",
+    "redis>=5.0.0",
+    "arq>=0.26.0",
+    "alembic>=1.13.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "psycopg2-binary>=2.9.11",
+    "asyncpg>=0.30.0",
+    "greenlet>=3.0.0",
+    "aiosqlite>=0.20.0",
 ]

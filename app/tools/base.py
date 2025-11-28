@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Any
 from app.models.user import User
+from app.tools.context import get_current_phone
 
 
 class BaseTool(ABC):
@@ -42,9 +43,12 @@ class BaseTool(ABC):
         """
         Wrap this tool as a callable for PydanticAI.
         Returns a function that can be used as a PydanticAI tool.
+        Automatically passes phone from context to kwargs.
         """
         async def _tool(text: str) -> str:
-            result = await self.process(text=text)
+            # Get phone from context so tools can access user-specific data
+            phone = get_current_phone()
+            result = await self.process(text=text, phone=phone)
             return result or "The tool didn't return any content."
         
         _tool.__name__ = self.name

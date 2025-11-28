@@ -54,26 +54,29 @@ class TextToImageTool(BaseTool):
     async def _generate_with_gemini(self, prompt: str) -> Optional[str]:
         """Generate image using Gemini 2.5 Flash Image API and return local file path."""
         try:
-            logger.info(f"🎨 Calling Gemini API to generate image...")
+            logger.info(f"🎨 Calling Gemini API to generate image: {prompt[:50]}...")
             
-            # Gemini API endpoint (using API key directly)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key={settings.GOOGLE_CLOUD_API_KEY}"
+            # Gemini API endpoint - use gemini-2.5-flash-image model
+            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent"
             
             payload = {
                 "contents": [{
                     "parts": [
                         {"text": prompt}
                     ]
-                }],
-                "generationConfig": {
-                    "responseModalities": ["IMAGE"]
-                }
+                }]
             }
             
-            headers = {"Content-Type": "application/json"}
+            # Use x-goog-api-key header as per documentation
+            headers = {
+                "Content-Type": "application/json",
+                "x-goog-api-key": settings.GOOGLE_CLOUD_API_KEY
+            }
             
             async with httpx.AsyncClient() as client:
                 response = await client.post(url, json=payload, headers=headers, timeout=60.0)
+                
+                logger.info(f"📨 Gemini API response: {response.status_code}")
                 
                 if response.status_code == 200:
                     result = response.json()
@@ -84,14 +87,19 @@ class TextToImageTool(BaseTool):
                             if "inlineData" in part:
                                 image_base64 = part["inlineData"]["data"]
                                 file_path = await self._save_image(image_base64, prompt)
-                                logger.info(f"🎨 Image saved to: {file_path}")
+                                logger.info(f"✅ Image saved to: {file_path}")
                                 return file_path
-                
-                logger.error(f"Gemini API error: {response.status_code} - {response.text}")
+                            elif "text" in part:
+                                logger.info(f"Gemini text response: {part['text'][:100]}")
+                        logger.warning("No image data in response")
+                    else:
+                        logger.warning(f"No candidates in response: {result}")
+                else:
+                    logger.error(f"❌ Gemini API error: {response.status_code} - {response.text[:500]}")
                 return None
                 
         except Exception as e:
-            logger.error(f"Error calling Gemini API: {e}")
+            logger.error(f"❌ Error calling Gemini API: {e}", exc_info=True)
             return None
     
     async def _save_image(self, image_base64: str, prompt: str) -> str:

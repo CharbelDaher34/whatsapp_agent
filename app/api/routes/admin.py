@@ -1,7 +1,7 @@
 """Admin API endpoints."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
-from typing import List
+from typing import List, Optional
 from app.db.session import get_session
 from app.models.user import User
 from app.models.conversation import Conversation
@@ -14,6 +14,7 @@ from app.schemas.admin import (
     UpdateToolRequest,
     ToolResponse
 )
+from app.services.queue.user_queue_manager import get_queue_manager
 from datetime import datetime
 
 router = APIRouter(
@@ -151,17 +152,133 @@ def update_tool(
 
 @router.get("/stats")
 def get_stats(session: Session = Depends(get_session)):
-    """Get system statistics."""
+    """Get system statistics and analytics."""
+    from datetime import datetime, timedelta
+    
     total_users = len(session.exec(select(User)).all())
     active_users = len(session.exec(select(User).where(User.is_active == True)).all())
     total_conversations = len(session.exec(select(Conversation)).all())
     total_messages = len(session.exec(select(Message)).all())
     
+    # User tier distribution
+    free_users = len(session.exec(select(User).where(User.subscription_tier == "free")).all())
+    plus_users = len(session.exec(select(User).where(User.subscription_tier == "plus")).all())
+    pro_users = len(session.exec(select(User).where(User.subscription_tier == "pro")).all())
+    
+    # Recent activity (last 24 hours)
+    yesterday = datetime.utcnow() - timedelta(hours=24)
+    messages_24h = len(session.exec(
+        select(Message).where(Message.created_at >= yesterday)
+    ).all())
+    
+    new_users_24h = len(session.exec(
+        select(User).where(User.created_at >= yesterday)
+    ).all())
+    
+    # Messages by sender
+    user_messages = len(session.exec(select(Message).where(Message.sender == "user")).all())
+    bot_messages = len(session.exec(select(Message).where(Message.sender == "bot")).all())
+    
     return {
         "total_users": total_users,
         "active_users": active_users,
+        "inactive_users": total_users - active_users,
         "total_conversations": total_conversations,
-        "total_messages": total_messages
+        "total_messages": total_messages,
+        "user_messages": user_messages,
+        "bot_messages": bot_messages,
+        "tier_distribution": {
+            "free": free_users,
+            "plus": plus_users,
+            "pro": pro_users
+        },
+        "last_24_hours": {
+            "messages": messages_24h,
+            "new_users": new_users_24h
+        }
+    }
+
+
+@router.patch("/conversations/{conversation_id}/close")
+def close_conversation(
+    conversation_id: int,
+    session: Session = Depends(get_session)
+):
+    """Close/archive a conversation."""
+    conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    conversation.status = "closed"
+    conversation.updated_at = datetime.utcnow()
+    session.add(conversation)
+    session.commit()
+    session.refresh(conversation)
+    
+    return conversation
+
+
+@router.delete("/conversations/{conversation_id}")
+def delete_conversation(
+    conversation_id: int,
+    session: Session = Depends(get_session)
+):
+    """Delete a conversation and all its messages."""
+    conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    # Delete all messages in this conversation
+    messages = session.exec(
+        select(Message).where(Message.conversation_id == conversation_id)
+    ).all()
+    
+    for msg in messages:
+        session.delete(msg)
+    
+    # Delete conversation
+    session.delete(conversation)
+    session.commit()
+    
+    return {"status": "deleted", "conversation_id": conversation_id}
+
+
+@router.get("/conversations")
+def list_all_conversations(
+    status: Optional[str] = None,
+    limit: int = 100,
+    session: Session = Depends(get_session)
+):
+    """List all conversations with optional filtering."""
+    query = select(Conversation).order_by(Conversation.updated_at.desc())
+    
+    if status:
+        query = query.where(Conversation.status == status)
+    
+    conversations = session.exec(query.limit(limit)).all()
+    
+    return conversations
+
+
+@router.get("/queue/status/{phone}")
+async def get_queue_status(phone: str):
+    """
+    Check queue status for a specific user.
+    
+    Args:
+        phone: User's phone number
+        
+    Returns:
+        Queue status information
+    """
+    queue_manager = get_queue_manager()
+    
+    return {
+        "phone": phone,
+        "is_processing": await queue_manager.is_user_processing(phone),
+        "queue_size": await queue_manager.get_queue_size(phone),
+        "max_queue_size": queue_manager.max_size,
+        "queue_enabled": queue_manager.enabled
     }
 
 
