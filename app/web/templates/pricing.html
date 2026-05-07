@@ -1,0 +1,49 @@
+{% extends "_base.html" %}
+{% block title %}Pricing — {{ app_name }}{% endblock %}
+{% block content %}
+<section class="hero" style="padding:32px 0">
+  <h1>Pick a plan</h1>
+  <p>Free to start. Upgrade any time, downgrade any time, cancel any time.</p>
+</section>
+
+<div class="grid">
+  {% for plan in plans %}
+    <div class="card tier-{{ plan.name }}">
+      <span class="badge {{ plan.name }}">{{ plan.display_name }}</span>
+      <h3 style="margin-top:12px">{{ plan.display_name }}</h3>
+      <div class="price">{{ plan.price_label }}</div>
+      <ul>
+        <li>{% if plan.messages_per_day == -1 %}Unlimited messages/day{% else %}{{ plan.messages_per_day }} messages/day{% endif %}</li>
+        <li>{% if plan.messages_per_month == -1 %}Unlimited messages/month{% else %}{{ plan.messages_per_month }} messages/month{% endif %}</li>
+        <li>Model: {{ plan.model }}</li>
+        <li>{% if plan.can_generate_images %}✅{% else %}❌{% endif %} Image generation</li>
+        <li>{% if plan.can_transform_images %}✅{% else %}❌{% endif %} Image editing</li>
+        <li>{% if plan.can_transcribe_audio %}✅{% else %}❌{% endif %} Voice note transcription</li>
+        <li>{% if plan.can_read_documents %}✅{% else %}❌{% endif %} Document analysis</li>
+      </ul>
+      <div class="btn-row">
+        {% if user and user.tier == plan.name %}
+          <button class="button secondary" disabled>Current plan</button>
+        {% elif plan.name == 'free' %}
+          <a class="button secondary" href="/login">Get started</a>
+        {% else %}
+          {% if user %}
+            <form method="post" action="/checkout/start" style="display:inline">
+              <input type="hidden" name="plan" value="{{ plan.name }}" />
+              <button class="button" type="submit">Upgrade to {{ plan.display_name }}</button>
+            </form>
+          {% else %}
+            <a class="button" href="/login?next=/checkout/start?plan={{ plan.name }}">Log in to upgrade</a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+{% if billing_mode == 'mock' %}
+  <div class="flash info" style="margin-top:24px">
+    🧪 Stripe is not configured — checkout runs in mock mode and will upgrade your plan instantly without taking payment.
+  </div>
+{% endif %}
+{% endblock %}

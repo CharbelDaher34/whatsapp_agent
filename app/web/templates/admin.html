@@ -1,0 +1,211 @@
+{% extends "_base.html" %}
+{% block title %}Admin — {{ app_name }}{% endblock %}
+{% block content %}
+<section class="hero" style="padding:20px 0; text-align:left">
+  <h1 style="font-size:26px">Admin Panel</h1>
+  <p style="color:var(--muted)">Manage users, plans, tools, conversations and queue health.</p>
+</section>
+
+<div id="auth-box" class="form-card card" style="display:none">
+  <h2>Authenticate</h2>
+  <p style="color:var(--muted)">Paste the <code>ADMIN_API_KEY</code> to load admin data. Stored in your browser only.</p>
+  <label for="admin-key">Admin key</label>
+  <input id="admin-key" type="password" autocomplete="off" />
+  <button class="cta" id="auth-save">Save & load</button>
+</div>
+
+<div id="panel" style="display:none">
+  <div class="kpis" id="kpis"></div>
+
+  <div class="section">
+    <h2>Plans</h2>
+    <div id="plans"></div>
+  </div>
+
+  <div class="section">
+    <h2>Users</h2>
+    <div class="row" style="margin-bottom:8px">
+      <input id="user-search" placeholder="Filter by phone…" style="padding:8px 12px; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px" />
+      <button class="button secondary" id="user-refresh">Refresh</button>
+    </div>
+    <table id="users-table">
+      <thead><tr><th>ID</th><th>Phone</th><th>Plan</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Conversations</h2>
+    <table id="convs-table">
+      <thead><tr><th>ID</th><th>User</th><th>Status</th><th>Updated</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Tools</h2>
+    <table id="tools-table">
+      <thead><tr><th>Name</th><th>Enabled</th><th>Min tier</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <button class="button secondary" id="logout-admin">Forget admin key</button>
+  </div>
+</div>
+
+<script>
+const KEY_STORAGE = 'wa-admin-key';
+const $ = (s) => document.querySelector(s);
+
+function getKey() { return localStorage.getItem(KEY_STORAGE) || ''; }
+function setKey(v) { localStorage.setItem(KEY_STORAGE, v); }
+function clearKey() { localStorage.removeItem(KEY_STORAGE); }
+
+async function api(path) {
+  const res = await fetch(path, { headers: { 'X-Admin-Key': getKey() } });
+  if (res.status === 401) { showAuth(); throw new Error('unauthorized'); }
+  if (!res.ok) throw new Error(`${path}: ${res.status}`);
+  return res.json();
+}
+
+async function apiPatch(path, body) {
+  const res = await fetch(path, {
+    method: 'PATCH',
+    headers: { 'X-Admin-Key': getKey(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${path}: ${res.status}`);
+  return res.json();
+}
+
+function showAuth() { $('#auth-box').style.display = 'block'; $('#panel').style.display = 'none'; }
+function showPanel() { $('#auth-box').style.display = 'none'; $('#panel').style.display = 'block'; }
+
+function fmt(num) { return num === -1 ? '∞' : num.toLocaleString(); }
+
+async function renderKpis() {
+  try {
+    const stats = await api('/admin/stats');
+    const tier = stats.tier_distribution || {};
+    $('#kpis').innerHTML = `
+      <div class="kpi"><div class="label">Total users</div><div class="value">${stats.total_users}</div></div>
+      <div class="kpi"><div class="label">Active</div><div class="value">${stats.active_users}</div></div>
+      <div class="kpi"><div class="label">Messages (24h)</div><div class="value">${stats.last_24_hours.messages}</div></div>
+      <div class="kpi"><div class="label">Free / Pro / Max</div><div class="value">${tier.free||0} / ${tier.pro||0} / ${tier.max||0}</div></div>
+    `;
+  } catch (e) { /* swallow */ }
+}
+
+async function renderPlans() {
+  const plans = await api('/admin/plans');
+  $('#plans').innerHTML = `
+    <table><thead><tr><th>Tier</th><th>Model</th><th>Daily</th><th>Monthly</th><th>Tools</th></tr></thead>
+    <tbody>
+      ${Object.values(plans).map(p => `
+        <tr>
+          <td><strong>${p.display_name}</strong></td>
+          <td>${p.model}</td>
+          <td>${fmt(p.messages_per_day)}</td>
+          <td>${fmt(p.messages_per_month)}</td>
+          <td>${(p.tools || []).join(', ')}</td>
+        </tr>
+      `).join('')}
+    </tbody></table>
+  `;
+}
+
+let allUsers = [];
+async function renderUsers() {
+  allUsers = await api('/admin/users');
+  paintUsers();
+}
+function paintUsers() {
+  const filter = $('#user-search').value.trim();
+  const rows = allUsers.filter(u => !filter || u.phone.includes(filter)).map(u => `
+    <tr>
+      <td>${u.id}</td>
+      <td>+${u.phone}</td>
+      <td>
+        <select data-uid="${u.id}" class="plan-select">
+          ${['free','pro','max'].map(t => `<option value="${t}" ${u.subscription_tier===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <button class="button secondary toggle-active" data-uid="${u.id}" data-active="${u.is_active?'1':'0'}">${u.is_active?'Active':'Inactive'}</button>
+      </td>
+      <td>${(u.created_at||'').replace('T',' ').slice(0,16)}</td>
+      <td>
+        <a class="button secondary" href="/admin/users/${u.id}/usage" target="_blank">Usage</a>
+      </td>
+    </tr>
+  `).join('');
+  $('#users-table tbody').innerHTML = rows || `<tr><td colspan="6" style="color:var(--muted)">No users.</td></tr>`;
+
+  document.querySelectorAll('.plan-select').forEach(sel => {
+    sel.addEventListener('change', async (e) => {
+      const uid = e.target.dataset.uid;
+      try {
+        await apiPatch(`/admin/users/${uid}/subscription`, { tier: e.target.value });
+        await renderUsers();
+        await renderKpis();
+      } catch { alert('Failed to update plan'); }
+    });
+  });
+  document.querySelectorAll('.toggle-active').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const uid = e.target.dataset.uid;
+      const next = e.target.dataset.active === '1' ? false : true;
+      try {
+        const url = `/admin/users/${uid}/status?is_active=${next}`;
+        const res = await fetch(url, { method: 'PATCH', headers: { 'X-Admin-Key': getKey() } });
+        if (!res.ok) throw new Error(res.status);
+        await renderUsers();
+      } catch { alert('Failed to toggle'); }
+    });
+  });
+}
+
+async function renderConvs() {
+  const list = await api('/admin/conversations?limit=50');
+  $('#convs-table tbody').innerHTML = list.map(c => `
+    <tr>
+      <td>${c.id}</td>
+      <td>${c.user_id}</td>
+      <td>${c.status}</td>
+      <td>${(c.updated_at||'').replace('T',' ').slice(0,16)}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="4" style="color:var(--muted)">No conversations.</td></tr>`;
+}
+
+async function renderTools() {
+  try {
+    const tools = await api('/admin/tools');
+    $('#tools-table tbody').innerHTML = tools.map(t => `
+      <tr><td>${t.name}</td><td>${t.enabled?'✅':'❌'}</td><td>${t.min_tier}</td></tr>
+    `).join('') || `<tr><td colspan="3" style="color:var(--muted)">No tool overrides set.</td></tr>`;
+  } catch {}
+}
+
+async function loadAll() {
+  showPanel();
+  await Promise.all([renderKpis(), renderPlans(), renderUsers(), renderConvs(), renderTools()]);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (!getKey()) { showAuth(); }
+  else { loadAll().catch(()=>showAuth()); }
+
+  $('#auth-save').addEventListener('click', () => {
+    const v = $('#admin-key').value.trim();
+    if (!v) return;
+    setKey(v);
+    loadAll().catch(()=>showAuth());
+  });
+  $('#logout-admin').addEventListener('click', () => { clearKey(); location.reload(); });
+  $('#user-search').addEventListener('input', paintUsers);
+  $('#user-refresh').addEventListener('click', renderUsers);
+});
+</script>
+{% endblock %}

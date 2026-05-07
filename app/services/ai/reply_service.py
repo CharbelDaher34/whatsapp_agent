@@ -8,7 +8,7 @@ from app.core.logging import logger
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.user import User
-from app.services.ai_router import generate_reply as generate_ai_reply
+from app.services.ai.agent_runner import generate_reply as generate_ai_reply
 from app.services.whatsapp.media_handler import extract_image_url_from_text
 
 

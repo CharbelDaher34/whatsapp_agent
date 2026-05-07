@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% block title %}{{ app_name }} — your WhatsApp AI assistant{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>A smart WhatsApp assistant<br /> that lives in your chats.</h1>
+  <p>
+    Send text, photos, voice notes, documents — your assistant understands them all,
+    asks for the missing pieces, and replies right inside WhatsApp. Plans scale from
+    everyday Free to power-user Max.
+  </p>
+  <div>
+    <a class="cta" href="/pricing">See plans</a>
+    <a class="cta secondary" href="/login" style="margin-left:8px">Log in</a>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:36px">
+  <div class="card"><h3>Talks like a person</h3><p>Free-form chat plus structured questions back to you when something is unclear.</p></div>
+  <div class="card"><h3>Multimodal</h3><p>Vision on images, transcription on voice notes, text + PDF parsing on documents.</p></div>
+  <div class="card"><h3>Plan-based fairness</h3><p>Quotas and tools scale with your subscription — never any opaque limits.</p></div>
+</section>
+{% endblock %}

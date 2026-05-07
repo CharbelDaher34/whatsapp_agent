@@ -1,6 +1,6 @@
 """Background tasks for async processing."""
 from typing import Dict, Any
-from app.services.whatsapp_service import handle_incoming_webhook
+from app.services.whatsapp.orchestrator import handle_incoming_webhook
 from app.core.logging import logger
 
 

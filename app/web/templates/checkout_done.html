@@ -1,0 +1,9 @@
+{% extends "_base.html" %}
+{% block title %}{{ heading }} — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="form-card card" style="text-align:center">
+  <h2>{{ heading }}</h2>
+  <p style="color:var(--muted)">{{ body }}</p>
+  <a class="cta" href="/dashboard">Go to dashboard</a>
+</div>
+{% endblock %}

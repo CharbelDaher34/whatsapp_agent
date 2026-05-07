@@ -18,7 +18,7 @@ from app.schemas.admin import (
     UpdateToolRequest,
     UserResponse,
 )
-from app.services.queue.user_queue_manager import get_queue_manager
+from app.queue.user_queue_manager import get_queue_manager
 from app.utils.auth import admin_auth
 
 router = APIRouter(

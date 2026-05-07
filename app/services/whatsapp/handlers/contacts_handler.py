@@ -3,7 +3,7 @@ import json
 
 from app.services.whatsapp.handlers.base import BaseMessageHandler, HandlerResult
 from app.services.whatsapp.parser import ParsedMessage
-from app.services.conversation.flow_service import ConversationContext
+from app.services.conversation_service import ConversationContext
 
 
 class ContactsHandler(BaseMessageHandler):

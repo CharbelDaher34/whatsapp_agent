@@ -11,7 +11,7 @@ import redis.asyncio as redis
 
 from app.services.whatsapp.handlers.base import BaseMessageHandler, HandlerResult
 from app.services.whatsapp.parser import ParsedMessage
-from app.services.conversation.flow_service import ConversationContext
+from app.services.conversation_service import ConversationContext
 from app.services.whatsapp.media_handler import process_incoming_media
 from app.core.config import settings
 from app.core.logging import logger

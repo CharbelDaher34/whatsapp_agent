@@ -9,7 +9,7 @@ from app.db.session import get_session
 from app.models.user import User
 from app.models.broadcast import Broadcast
 from app.utils.auth import admin_auth
-from app.services.whatsapp_client import send_whatsapp_text, send_whatsapp_image
+from app.services.whatsapp.client import send_whatsapp_text, send_whatsapp_image
 from app.core.logging import logger
 
 

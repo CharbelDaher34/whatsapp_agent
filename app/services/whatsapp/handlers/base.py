@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 from pydantic import BaseModel
 from app.services.whatsapp.parser import ParsedMessage
-from app.services.conversation.flow_service import ConversationContext
+from app.services.conversation_service import ConversationContext
 
 
 class HandlerResult(BaseModel):

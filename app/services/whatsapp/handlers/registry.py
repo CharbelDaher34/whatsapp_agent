@@ -1,6 +1,6 @@
 """Message handler registry — one handler per WhatsApp inbound type."""
 from app.services.whatsapp.parser import MessageType, ParsedMessage
-from app.services.conversation.flow_service import ConversationContext
+from app.services.conversation_service import ConversationContext
 from app.services.whatsapp.handlers.base import BaseMessageHandler, HandlerResult
 from app.services.whatsapp.handlers.text_handler import TextHandler
 from app.services.whatsapp.handlers.image_handler import ImageHandler

@@ -19,6 +19,11 @@ from app.tools.registry import init_tools
 from app.api.routes import whatsapp, admin, health, broadcast, webhooks_admin
 from app.middleware import RateLimitMiddleware
 from app.middleware.message_queue import MessageQueueMiddleware
+from app.web.routes import router as web_router
+from app.web.admin_ui import router as admin_ui_router
+from app.web.stripe_webhook import router as stripe_webhook_router
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 
 @asynccontextmanager
@@ -208,22 +213,26 @@ async def whatsapp_bot_error_handler(request: Request, exc: WhatsAppBotError):
     )
 
 
-# Include routers
+# Static assets for the user-facing web app + admin panel
+_STATIC_DIR = Path(__file__).parent / "web" / "static"
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+# Include routers (order matters: web_router owns "/", so include it last
+# among root-level routers and provide explicit `/api` JSON entry separately).
 app.include_router(health.router)
 app.include_router(whatsapp.router)
 app.include_router(admin.router)
 app.include_router(broadcast.router)
 app.include_router(webhooks_admin.router)
+app.include_router(stripe_webhook_router)
+app.include_router(admin_ui_router)
+app.include_router(web_router)
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "message": "WhatsApp Bot API",
-        "docs": "/docs",
-        "health": "/health"
-    }
+@app.get("/api", include_in_schema=False)
+async def api_index():
+    """Tiny JSON index for programmatic clients (the user landing lives at '/')."""
+    return {"app": settings.APP_NAME, "docs": "/docs", "health": "/health"}
 
 
 if __name__ == "__main__":

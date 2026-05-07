@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="brand">{{ app_name }}<span class="dot">.</span></div>
+      <nav class="nav">
+        <a href="/" {% if active=='home' %}class="active"{% endif %}>Home</a>
+        <a href="/pricing" {% if active=='pricing' %}class="active"{% endif %}>Pricing</a>
+        {% if user %}
+          <a href="/dashboard" {% if active=='dashboard' %}class="active"{% endif %}>Dashboard</a>
+          <a href="/logout">Log out</a>
+        {% else %}
+          <a href="/login" {% if active=='login' %}class="active"{% endif %}>Log in</a>
+        {% endif %}
+      </nav>
+    </header>
+    {% if flash %}<div class="flash {{ flash_kind or 'info' }}">{{ flash }}</div>{% endif %}
+    {% block content %}{% endblock %}
+    <div class="footer">{{ app_name }} · WhatsApp Cloud API · plans: Free / Pro / Max</div>
+  </div>
+</body>
+</html>

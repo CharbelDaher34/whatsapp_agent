@@ -1,0 +1,75 @@
+{% extends "_base.html" %}
+{% block title %}Dashboard — {{ app_name }}{% endblock %}
+{% block content %}
+<section class="hero" style="padding:24px 0; text-align:left">
+  <h1 style="font-size:28px">Welcome back, +{{ db_user.phone }}</h1>
+  <p>Plan: <strong>{{ plan.display_name }}</strong> · Model: {{ plan.model }}</p>
+</section>
+
+<div class="kpis">
+  <div class="kpi">
+    <div class="label">Messages today</div>
+    <div class="value">
+      {{ usage.daily_used }}{% if usage.daily_limit != -1 %} / {{ usage.daily_limit }}{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="label">Messages this month</div>
+    <div class="value">
+      {{ usage.monthly_used }}{% if usage.monthly_limit != -1 %} / {{ usage.monthly_limit }}{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="label">Tools available</div>
+    <div class="value">{{ plan.tools | length if plan.tools is iterable else '—' }}</div>
+  </div>
+  <div class="kpi">
+    <div class="label">History depth</div>
+    <div class="value">{{ plan.history_depth }}</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Capabilities on {{ plan.display_name }}</h2>
+  <table>
+    <tbody>
+      <tr><td>Image generation</td><td>{% if plan.can_generate_images %}✅{% else %}❌{% endif %}</td></tr>
+      <tr><td>Image editing</td><td>{% if plan.can_transform_images %}✅{% else %}❌{% endif %}</td></tr>
+      <tr><td>Voice transcription</td><td>{% if plan.can_transcribe_audio %}✅{% else %}❌{% endif %}</td></tr>
+      <tr><td>Document analysis</td><td>{% if plan.can_read_documents %}✅{% else %}❌{% endif %}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Manage subscription</h2>
+  <div class="row">
+    {% if plan.name != 'pro' %}
+      <form method="post" action="/checkout/start"><input type="hidden" name="plan" value="pro" /><button class="button" type="submit">Switch to Pro</button></form>
+    {% endif %}
+    {% if plan.name != 'max' %}
+      <form method="post" action="/checkout/start"><input type="hidden" name="plan" value="max" /><button class="button" type="submit">Switch to Max</button></form>
+    {% endif %}
+    {% if plan.name != 'free' %}
+      <form method="post" action="/account/downgrade-free" onsubmit="return confirm('Downgrade to Free? Quotas will reset at the next message.')">
+        <button class="button secondary" type="submit">Downgrade to Free</button>
+      </form>
+    {% endif %}
+    <a class="button secondary" href="/pricing">View plans</a>
+  </div>
+</div>
+
+<div class="section">
+  <h2>WhatsApp shortcuts</h2>
+  <p style="color:var(--muted)">Type any of these directly in WhatsApp:</p>
+  <table>
+    <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>/plan</td><td>Show your current plan and capabilities</td></tr>
+      <tr><td>/usage</td><td>Show today + month-to-date usage</td></tr>
+      <tr><td>/upgrade</td><td>Open the upgrade flow</td></tr>
+      <tr><td>/help</td><td>List every available shortcut</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

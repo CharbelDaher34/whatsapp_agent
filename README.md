@@ -10,6 +10,9 @@ A scalable WhatsApp bot backend built with FastAPI, SQLModel, Pydantic, and Pyda
 - 📊 **Admin Panel**: REST endpoints for users, tools, plans, and per-user usage
 - 🗄️ **Database**: SQLModel + per-user daily/monthly usage tracking for quota enforcement
 - 🔐 **Subscription Tiers**: **Free / Pro / Max** with different message quotas, model choice, and tool access
+- 🌐 **Web app**: marketing landing, pricing page, phone+OTP login, dashboard, Stripe checkout (with mock fallback for dev)
+- 🧑‍💻 **Admin UI**: HTML panel at `/admin-ui` for users, plans, conversations, tools, queue
+- 💬 **In-WhatsApp commands**: `/plan`, `/usage`, `/upgrade`, `/help` for plan/usage/upgrade flows without leaving WhatsApp
 
 ## Project Structure
 

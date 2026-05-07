@@ -19,19 +19,20 @@ from app.core.exceptions import RateLimitExceeded, WhatsAppBotError
 from app.core.logging import logger
 from app.db.session import get_session
 from app.services.ai.reply_service import generate_reply_for_user, process_tool_outputs
-from app.services.conversation.flow_service import (
+from app.services.conversation_service import (
     get_conversation_context,
     get_or_create_user_conversation,
     save_bot_message,
     save_user_message,
 )
-from app.services.interactive_messages import mark_message_read
-from app.services.queue.user_queue_manager import get_queue_manager
+from app.services.whatsapp.interactive import mark_message_read
+from app.queue.user_queue_manager import get_queue_manager
 from app.services.subscription_service import check_quota, register_message
+from app.services.whatsapp.commands import maybe_handle_command, parse_command
 from app.services.whatsapp.handlers.registry import handle_message
 from app.services.whatsapp.media_handler import upload_media_to_whatsapp
-from app.services.whatsapp.parser import parse_webhook_payload
-from app.services.whatsapp_client import send_whatsapp_image, send_whatsapp_text
+from app.services.whatsapp.parser import MessageType, parse_webhook_payload
+from app.services.whatsapp.client import send_whatsapp_image, send_whatsapp_text
 
 
 async def _process_queued_messages(phone: str, original_payload: dict) -> None:
@@ -95,6 +96,26 @@ def _create_combined_payload(phone: str, combined_text: str, template: dict) -> 
         return template
 
 
+def _command_text(message) -> str | None:
+    """Return the slash-command text from a message, if applicable.
+
+    Plain text and interactive replies (buttons / list selections whose id
+    starts with ``upgrade:``) all map to a command string the command router
+    understands.
+    """
+    if message.message_type == MessageType.TEXT:
+        candidate = (message.content.text or "").strip()
+        return candidate if parse_command(candidate) else None
+
+    if message.message_type in (MessageType.INTERACTIVE, MessageType.BUTTON):
+        rid = (message.content.button_id or message.content.list_id or "").strip()
+        if rid.startswith("upgrade:"):
+            target = rid.split(":", 1)[1] or ""
+            if parse_command(target):
+                return f"/{target}"
+    return None
+
+
 async def _send_quota_response(phone: str, quota) -> None:
     """Tell the user politely they've hit their plan limit."""
     try:
@@ -131,7 +152,22 @@ async def handle_incoming_webhook(payload: dict):
                 await _send_quota_response(phone, quota)
                 raise RateLimitExceeded(quota.reason or "quota_exceeded")
 
-            # 3. Type-specific handler (downloads media, transcribes audio, etc.).
+            # 3. Slash-command shortcut? Bypasses the AI entirely.
+            command_text = _command_text(message)
+            if command_text and await maybe_handle_command(
+                command_text, user, phone, session,
+            ):
+                await save_user_message(
+                    conversation.id,
+                    command_text,
+                    message.message_type.value,
+                    session,
+                )
+                await register_message(user, session)
+                await session.commit()
+                return {"status": "success", "data": {"reply_type": "command"}}
+
+            # 4. Type-specific handler (downloads media, transcribes audio, etc.).
             context = await get_conversation_context(
                 conversation, session, limit=quota.plan.history_depth,
             )

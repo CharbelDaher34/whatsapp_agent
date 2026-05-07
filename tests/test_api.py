@@ -3,14 +3,43 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-def test_root_endpoint(client: TestClient):
-    """Test root endpoint."""
+def test_root_endpoint_renders_landing(client: TestClient):
+    """The root path now serves the marketing landing HTML."""
     response = client.get("/")
     assert response.status_code == 200
-    data = response.json()
-    assert "message" in data
-    assert "docs" in data
-    assert "health" in data
+    assert "text/html" in response.headers["content-type"]
+    assert "WhatsApp" in response.text
+
+
+def test_pricing_page_lists_plans(client: TestClient):
+    response = client.get("/pricing")
+    assert response.status_code == 200
+    body = response.text
+    for plan in ("Free", "Pro", "Max"):
+        assert plan in body
+
+
+def test_login_page_renders(client: TestClient):
+    response = client.get("/login")
+    assert response.status_code == 200
+    assert "WhatsApp" in response.text
+
+
+def test_admin_ui_page_renders(client: TestClient):
+    response = client.get("/admin-ui")
+    assert response.status_code == 200
+    assert "Admin Panel" in response.text
+
+
+def test_dashboard_requires_auth(client: TestClient):
+    response = client.get("/dashboard")
+    assert response.status_code == 401
+
+
+def test_api_index_returns_json(client: TestClient):
+    response = client.get("/api")
+    assert response.status_code == 200
+    assert "app" in response.json()
 
 
 def test_health_endpoint(client: TestClient):

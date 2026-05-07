@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Callable
 import json
-from app.services.queue.user_queue_manager import get_queue_manager
+from app.queue.user_queue_manager import get_queue_manager
 from app.core.logging import logger
 
 

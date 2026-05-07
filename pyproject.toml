@@ -26,6 +26,9 @@ dependencies = [
     "greenlet>=3.0.0",
     "aiosqlite>=0.20.0",
     "pypdf>=4.0.0",
+    "pyjwt>=2.9.0",
+    "stripe>=10.0.0",
+    "itsdangerous>=2.2.0",
 ]
 
 [tool.pytest.ini_options]

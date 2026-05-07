@@ -27,7 +27,7 @@ import json
 from typing import Any, List, Optional
 
 from app.tools.base import BaseTool
-from app.services.interactive_messages import send_button_message, send_list_message
+from app.services.whatsapp.interactive import send_button_message, send_list_message
 from app.core.logging import logger
 
 

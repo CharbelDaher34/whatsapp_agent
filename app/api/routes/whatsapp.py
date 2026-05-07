@@ -1,7 +1,7 @@
 """WhatsApp webhook endpoints with security and validation."""
 from fastapi import APIRouter, Request, HTTPException, Query, Header, status
 from typing import Optional
-from app.services.whatsapp_service import handle_incoming_webhook
+from app.services.whatsapp.orchestrator import handle_incoming_webhook
 from app.core.config import settings
 from app.core.logging import logger
 from app.utils.whatsapp_security import verify_webhook_signature, validate_verify_token
