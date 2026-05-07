@@ -1,21 +1,25 @@
 """Admin API endpoints."""
+from datetime import datetime, timedelta
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
-from typing import List, Optional
+
+from app.core.plans import PLANS, normalize_tier
 from app.db.session import get_session
-from app.models.user import User
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.tool import ToolConfig
-from app.utils.auth import admin_auth
+from app.models.usage import UsageRecord
+from app.models.user import User
 from app.schemas.admin import (
-    UserResponse,
+    ToolResponse,
     UpdateSubscriptionRequest,
     UpdateToolRequest,
-    ToolResponse
+    UserResponse,
 )
 from app.services.queue.user_queue_manager import get_queue_manager
-from datetime import datetime
+from app.utils.auth import admin_auth
 
 router = APIRouter(
     prefix="/admin",
@@ -51,7 +55,13 @@ def update_user_subscription(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    user.subscription_tier = request.tier
+    tier = normalize_tier(request.tier)
+    if tier not in PLANS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid tier '{request.tier}'. Must be one of: {sorted(PLANS)}",
+        )
+    user.subscription_tier = tier
     user.updated_at = datetime.utcnow()
     session.add(user)
     session.commit()
@@ -152,33 +162,31 @@ def update_tool(
 
 @router.get("/stats")
 def get_stats(session: Session = Depends(get_session)):
-    """Get system statistics and analytics."""
-    from datetime import datetime, timedelta
-    
+    """System statistics and tier distribution."""
     total_users = len(session.exec(select(User)).all())
-    active_users = len(session.exec(select(User).where(User.is_active == True)).all())
+    active_users = len(session.exec(select(User).where(User.is_active == True)).all())  # noqa: E712
     total_conversations = len(session.exec(select(Conversation)).all())
     total_messages = len(session.exec(select(Message)).all())
-    
-    # User tier distribution
-    free_users = len(session.exec(select(User).where(User.subscription_tier == "free")).all())
-    plus_users = len(session.exec(select(User).where(User.subscription_tier == "plus")).all())
-    pro_users = len(session.exec(select(User).where(User.subscription_tier == "pro")).all())
-    
-    # Recent activity (last 24 hours)
+
+    tier_distribution: dict[str, int] = {tier: 0 for tier in PLANS}
+    for u in session.exec(select(User)).all():
+        tier_distribution[normalize_tier(u.subscription_tier)] = (
+            tier_distribution.get(normalize_tier(u.subscription_tier), 0) + 1
+        )
+
     yesterday = datetime.utcnow() - timedelta(hours=24)
     messages_24h = len(session.exec(
         select(Message).where(Message.created_at >= yesterday)
     ).all())
-    
     new_users_24h = len(session.exec(
         select(User).where(User.created_at >= yesterday)
     ).all())
-    
-    # Messages by sender
+
     user_messages = len(session.exec(select(Message).where(Message.sender == "user")).all())
-    bot_messages = len(session.exec(select(Message).where(Message.sender == "bot")).all())
-    
+    bot_messages = len(session.exec(
+        select(Message).where(Message.sender.in_(["bot", "assistant"]))  # type: ignore[attr-defined]
+    ).all())
+
     return {
         "total_users": total_users,
         "active_users": active_users,
@@ -187,15 +195,67 @@ def get_stats(session: Session = Depends(get_session)):
         "total_messages": total_messages,
         "user_messages": user_messages,
         "bot_messages": bot_messages,
-        "tier_distribution": {
-            "free": free_users,
-            "plus": plus_users,
-            "pro": pro_users
-        },
+        "tier_distribution": tier_distribution,
         "last_24_hours": {
             "messages": messages_24h,
-            "new_users": new_users_24h
+            "new_users": new_users_24h,
+        },
+    }
+
+
+@router.get("/plans")
+def list_plans():
+    """Return the configured plan tiers and their limits."""
+    return {
+        name: {
+            "name": p.name,
+            "display_name": p.display_name,
+            "messages_per_day": p.messages_per_day,
+            "messages_per_month": p.messages_per_month,
+            "history_depth": p.history_depth,
+            "model": p.model,
+            "tools": sorted(p.tools),
+            "inbound_modalities": sorted(p.inbound_modalities),
+            "can_generate_images": p.can_generate_images,
+            "can_transform_images": p.can_transform_images,
+            "can_transcribe_audio": p.can_transcribe_audio,
+            "can_read_documents": p.can_read_documents,
         }
+        for name, p in PLANS.items()
+    }
+
+
+@router.get("/users/{user_id}/usage")
+def get_user_usage(user_id: int, session: Session = Depends(get_session)):
+    """Today + month-to-date usage for a single user."""
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    today = datetime.utcnow().date()
+    daily = session.exec(
+        select(UsageRecord).where(
+            UsageRecord.user_id == user_id,
+            UsageRecord.day == today,
+        )
+    ).first()
+    month_records = session.exec(
+        select(UsageRecord).where(
+            UsageRecord.user_id == user_id,
+            UsageRecord.day >= today.replace(day=1),
+        )
+    ).all()
+    monthly_total = sum(r.messages for r in month_records)
+
+    plan = PLANS[normalize_tier(user.subscription_tier)]
+    return {
+        "user_id": user_id,
+        "phone": user.phone,
+        "plan": plan.name,
+        "daily_used": daily.messages if daily else 0,
+        "daily_limit": plan.messages_per_day,
+        "monthly_used": monthly_total,
+        "monthly_limit": plan.messages_per_month,
     }
 
 

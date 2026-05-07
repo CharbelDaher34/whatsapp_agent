@@ -4,12 +4,12 @@ A scalable WhatsApp bot backend built with FastAPI, SQLModel, Pydantic, and Pyda
 
 ## Features
 
-- 🤖 **AI-Powered**: Uses PydanticAI for intelligent conversation handling
-- 🔧 **Tool System**: Modular tool architecture with subscription-based access control
-- 💬 **WhatsApp Integration**: Full webhook support for WhatsApp Business API
-- 📊 **Admin Panel**: RESTful API endpoints for user and tool management
-- 🗄️ **Database**: SQLModel for clean, type-safe database operations
-- 🔐 **Subscription Tiers**: Free, Plus, and Pro tiers with different tool access
+- 🤖 **AI-Powered**: Plan-aware PydanticAI agent (model + tools + history depth scale with the user's tier)
+- 🔧 **Tool System**: Modular tools with per-plan whitelisting; agent can ask the user buttons/list questions back
+- 💬 **Full WhatsApp Coverage**: text, image, video, audio, voice, document, sticker, location, contacts, interactive (button/list), template buttons, reactions
+- 📊 **Admin Panel**: REST endpoints for users, tools, plans, and per-user usage
+- 🗄️ **Database**: SQLModel + per-user daily/monthly usage tracking for quota enforcement
+- 🔐 **Subscription Tiers**: **Free / Pro / Max** with different message quotas, model choice, and tool access
 
 ## Project Structure
 

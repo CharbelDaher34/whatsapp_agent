@@ -25,4 +25,9 @@ dependencies = [
     "asyncpg>=0.30.0",
     "greenlet>=3.0.0",
     "aiosqlite>=0.20.0",
+    "pypdf>=4.0.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+

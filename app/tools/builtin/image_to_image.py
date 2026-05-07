@@ -23,9 +23,9 @@ class ImageToImageTool(BaseTool):
                 "The image is automatically retrieved - just provide the transformation instruction."
             ),
             enabled=enabled,
-            min_tier="free",
+            min_tier="pro",
         )
-    
+
     async def process(self, text: str, **kwargs: Any) -> Optional[str]:
         """Transform an image based on text instructions."""
         try:

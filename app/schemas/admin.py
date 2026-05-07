@@ -17,7 +17,7 @@ class UserResponse(BaseModel):
 
 class UpdateSubscriptionRequest(BaseModel):
     """Update subscription request."""
-    tier: str
+    tier: str  # one of: free | pro | max
 
 
 class UpdateToolRequest(BaseModel):

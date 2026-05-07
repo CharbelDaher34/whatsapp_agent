@@ -5,6 +5,7 @@ from app.models import User, Conversation, Message, ToolConfig
 from app.models.interaction import Interaction
 from app.models.webhook_log import WebhookLog
 from app.models.broadcast import Broadcast
+from app.models.usage import UsageRecord
 from app.core.logging import logger
 
 

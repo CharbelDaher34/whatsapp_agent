@@ -1,37 +1,62 @@
-"""Calculator tool for basic math operations."""
-from typing import Optional, Any
+"""Safe arithmetic calculator (AST-based, no `eval`)."""
+import ast
+import operator
+from typing import Any, Optional
+
 from app.tools.base import BaseTool
-import re
+
+
+_BIN_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+_UNARY_OPS = {
+    ast.UAdd: operator.pos,
+    ast.USub: operator.neg,
+}
+
+
+def _safe_eval(node: ast.AST) -> float:
+    if isinstance(node, ast.Expression):
+        return _safe_eval(node.body)
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.BinOp) and type(node.op) in _BIN_OPS:
+        return _BIN_OPS[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY_OPS:
+        return _UNARY_OPS[type(node.op)](_safe_eval(node.operand))
+    raise ValueError(f"Unsupported expression: {ast.dump(node)}")
 
 
 class CalculatorTool(BaseTool):
-    """Calculator tool for basic math operations."""
-    
+    """Evaluate arithmetic expressions safely."""
+
     def __init__(self, enabled: bool = True):
         super().__init__(
             name="calculator",
-            description="Perform basic math calculations",
+            description="Evaluate a basic arithmetic expression.",
             capabilities=(
-                "Can evaluate mathematical expressions like '2 + 2', '10 * 5', "
-                "'100 / 4', etc. Supports +, -, *, /, (, ), and numbers."
+                "Supports +, -, *, /, //, %, ** and parentheses on numbers. "
+                "Pass the raw expression as text (e.g. '2 + 2 * 3')."
             ),
             enabled=enabled,
             min_tier="free",
         )
-    
+
     async def process(self, text: str, **kwargs: Any) -> Optional[str]:
-        """Evaluate a math expression safely."""
+        expr = (text or "").strip()
+        if not expr:
+            return "No expression provided."
         try:
-            # Remove all non-math characters for safety
-            safe_text = re.sub(r'[^0-9+\-*/().\s]', '', text)
-            if not safe_text:
-                return "No valid mathematical expression found."
-            
-            result = eval(safe_text)
-            return f"The result is: {result}"
+            tree = ast.parse(expr, mode="eval")
+            value = _safe_eval(tree)
         except ZeroDivisionError:
-            return "Error: Division by zero."
-        except Exception as e:
-            return f"Error calculating: {str(e)}"
-
-
+            return "Error: division by zero."
+        except (SyntaxError, ValueError):
+            return "I couldn't parse that expression. Try something like '2 + 2 * 3'."
+        return f"The result is: {value}"

@@ -59,7 +59,7 @@ async def verify(
         )
     
     # Return challenge to complete verification
-        logger.info("✅ Webhook verified successfully!")
+    logger.info("✅ Webhook verified successfully!")
     try:
         return int(hub_challenge)
     except ValueError:

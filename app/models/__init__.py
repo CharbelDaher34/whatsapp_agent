@@ -3,7 +3,8 @@ from app.models.user import User
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.tool import ToolConfig
+from app.models.usage import UsageRecord
 
-__all__ = ["User", "Conversation", "Message", "ToolConfig"]
+__all__ = ["User", "Conversation", "Message", "ToolConfig", "UsageRecord"]
 
 

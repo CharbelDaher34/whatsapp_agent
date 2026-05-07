@@ -22,9 +22,9 @@ class TextToImageTool(BaseTool):
                 "Supports detailed descriptions and various aspect ratios."
             ),
             enabled=enabled,
-            min_tier="free",
+            min_tier="pro",
         )
-    
+
     async def process(self, text: str, **kwargs: Any) -> Optional[str]:
         """Generate an image from text prompt."""
         try:
