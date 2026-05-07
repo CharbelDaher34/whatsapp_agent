@@ -60,6 +60,66 @@
 </div>
 
 <div class="section">
+  <h2>Integrations</h2>
+  <p style="color:var(--muted)">Connect external accounts to use them right inside WhatsApp.</p>
+
+  {% if integrations_enabled %}
+    <table>
+      <thead><tr><th>Provider</th><th>Status</th><th>Account</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Google (Gmail)</td>
+          {% if google_integration %}
+            <td>{{ google_integration.status }}</td>
+            <td>{{ google_integration.account_email or '—' }}</td>
+            <td>
+              <form method="post" action="/integrations/google/disconnect">
+                <button class="button danger" type="submit">Disconnect</button>
+              </form>
+            </td>
+          {% else %}
+            <td>not connected</td><td>—</td>
+            <td><a class="button" href="/integrations/google/connect">Connect Gmail</a></td>
+          {% endif %}
+        </tr>
+      </tbody>
+    </table>
+  {% else %}
+    <div class="flash info">
+      Integrations are available on Pro and Max plans.
+      <a href="/pricing">Upgrade</a> to connect Gmail and other accounts.
+    </div>
+  {% endif %}
+</div>
+
+<div class="section">
+  <h2>Memory</h2>
+  <p style="color:var(--muted)">Things I've remembered so I can help you better next time.</p>
+  {% if memories %}
+    <table>
+      <thead><tr><th>Kind</th><th>Key</th><th>Value</th><th></th></tr></thead>
+      <tbody>
+        {% for m in memories %}
+          <tr>
+            <td>{{ m.kind }}</td>
+            <td>{{ m.key or '—' }}</td>
+            <td>{{ m.value }}</td>
+            <td>
+              <form method="post" action="/account/forget" style="display:inline">
+                <input type="hidden" name="memory_id" value="{{ m.id }}" />
+                <button class="button secondary" type="submit">Forget</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color:var(--muted)">Nothing remembered yet.</p>
+  {% endif %}
+</div>
+
+<div class="section">
   <h2>WhatsApp shortcuts</h2>
   <p style="color:var(--muted)">Type any of these directly in WhatsApp:</p>
   <table>

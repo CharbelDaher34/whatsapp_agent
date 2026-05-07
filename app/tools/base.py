@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional
 
 from app.models.user import User
-from app.tools.context import get_current_phone
+from app.tools.context import get_current_phone, get_current_user_id
 from app.core.plans import tier_rank, tool_allowed
 
 
@@ -44,7 +44,8 @@ class BaseTool(ABC):
 
         async def _tool(text: str) -> str:
             phone = get_current_phone()
-            result = await self.process(text=text, phone=phone)
+            user_id = get_current_user_id()
+            result = await self.process(text=text, phone=phone, user_id=user_id)
             return result or "The tool didn't return any content."
 
         _tool.__name__ = self.name

@@ -36,6 +36,12 @@ _COMMAND_ALIASES = {
     "subscribe": "upgrade",
     "pro": "pro",
     "max": "max",
+    "memory": "memory",
+    "memories": "memory",
+    "forget": "forget",
+    "forgetall": "forget_all",
+    "integrations": "integrations",
+    "connect": "integrations",
 }
 
 
@@ -81,6 +87,9 @@ async def _handle_help(phone: str) -> None:
         "/plan – your current plan & capabilities\n"
         "/usage – your usage today & this month\n"
         "/upgrade – upgrade to Pro or Max\n"
+        "/memory – list things I remember about you\n"
+        "/forget <topic> – ask me to forget something\n"
+        "/integrations – connect Gmail and other accounts\n"
         "/help – this list\n\n"
         "Or just chat normally — I'm happy to help."
     )
@@ -148,6 +157,63 @@ async def _handle_direct_upgrade(phone: str, target: str) -> None:
     )
 
 
+async def _handle_memory(phone: str, user: User, session: AsyncSession) -> None:
+    from app.services.memory_service import recall, render_memories
+    rows = await recall(session, user.id, None, limit=12)
+    if not rows:
+        await send_whatsapp_text(
+            phone,
+            "🧠 I don't have anything saved about you yet. "
+            "Tell me anything you'd like me to remember.",
+        )
+        return
+    body = render_memories(rows)
+    await send_whatsapp_text(phone, f"🧠 *What I remember about you*\n{body}")
+
+
+async def _handle_forget(phone: str, user: User, session: AsyncSession, raw: str) -> None:
+    from app.services.memory_service import forget_memory
+    arg = raw.strip()
+    # Strip the command word itself, leave whatever the user typed after it.
+    for prefix in ("/forget", "forget"):
+        if arg.lower().startswith(prefix):
+            arg = arg[len(prefix):].strip()
+            break
+    if not arg:
+        await send_whatsapp_text(
+            phone,
+            "Usage: /forget <topic>. For example: /forget timezone",
+        )
+        return
+    removed = await forget_memory(session, user.id, key=arg)
+    await session.commit()
+    if removed:
+        await send_whatsapp_text(phone, f"OK — removed {removed} memory record(s) about “{arg}”.")
+    else:
+        await send_whatsapp_text(phone, f"I couldn't find any memory matching “{arg}”.")
+
+
+async def _handle_forget_all(phone: str, user: User, session: AsyncSession) -> None:
+    from sqlalchemy import delete
+    from app.models.memory import Memory
+    result = await session.execute(delete(Memory).where(Memory.user_id == user.id))
+    await session.commit()
+    await send_whatsapp_text(
+        phone, f"All clear — wiped {result.rowcount or 0} memory record(s)."
+    )
+
+
+async def _handle_integrations(phone: str) -> None:
+    base = settings.WEB_BASE_URL.rstrip("/")
+    await send_whatsapp_text(
+        phone,
+        "🔌 *Integrations*\n"
+        "Connect external accounts (Gmail, etc.) from your dashboard:\n"
+        f"{base}/dashboard\n\n"
+        "Once connected, you can ask me to search them in chat.",
+    )
+
+
 async def maybe_handle_command(
     text: str,
     user: User,
@@ -169,6 +235,14 @@ async def maybe_handle_command(
         await _handle_upgrade(phone, user)
     elif cmd in ("pro", "max"):
         await _handle_direct_upgrade(phone, cmd)
+    elif cmd == "memory":
+        await _handle_memory(phone, user, session)
+    elif cmd == "forget":
+        await _handle_forget(phone, user, session, text)
+    elif cmd == "forget_all":
+        await _handle_forget_all(phone, user, session)
+    elif cmd == "integrations":
+        await _handle_integrations(phone)
     else:
         return False
     return True

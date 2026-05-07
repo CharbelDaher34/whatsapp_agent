@@ -22,6 +22,7 @@ from app.middleware.message_queue import MessageQueueMiddleware
 from app.web.routes import router as web_router
 from app.web.admin_ui import router as admin_ui_router
 from app.web.stripe_webhook import router as stripe_webhook_router
+from app.web.integrations import router as integrations_router
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
@@ -225,6 +226,7 @@ app.include_router(admin.router)
 app.include_router(broadcast.router)
 app.include_router(webhooks_admin.router)
 app.include_router(stripe_webhook_router)
+app.include_router(integrations_router)
 app.include_router(admin_ui_router)
 app.include_router(web_router)
 

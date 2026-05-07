@@ -6,6 +6,8 @@ from app.models.interaction import Interaction
 from app.models.webhook_log import WebhookLog
 from app.models.broadcast import Broadcast
 from app.models.usage import UsageRecord
+from app.models.memory import Memory
+from app.models.integration import Integration
 from app.core.logging import logger
 
 

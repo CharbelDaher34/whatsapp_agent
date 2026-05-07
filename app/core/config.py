@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     PRICE_PRO_LABEL: str = "$9/mo"
     PRICE_MAX_LABEL: str = "$29/mo"
 
+    # OAuth — Google (used by the Gmail integration)
+    GOOGLE_OAUTH_CLIENT_ID: str = ""
+    GOOGLE_OAUTH_CLIENT_SECRET: str = ""
+    GOOGLE_OAUTH_REDIRECT_URI: str = ""  # falls back to f"{WEB_BASE_URL}/integrations/google/callback"
+
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE) if ENV_FILE.exists() else ".env",
         env_file_encoding="utf-8",

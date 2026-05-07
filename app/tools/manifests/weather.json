@@ -1,0 +1,14 @@
+{
+  "name": "weather",
+  "description": "Look up the current weather at a coordinate.",
+  "capabilities": "Pass `<lat>,<lng>` (decimal degrees), e.g. '52.52,13.41' for Berlin.",
+  "min_tier": "free",
+  "method": "GET",
+  "url": "https://api.open-meteo.com/v1/forecast",
+  "query": {
+    "latitude": "{lat}",
+    "longitude": "{lng}",
+    "current_weather": "true"
+  },
+  "extract": "current_weather"
+}

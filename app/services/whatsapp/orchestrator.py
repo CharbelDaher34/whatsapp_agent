@@ -27,6 +27,7 @@ from app.services.conversation_service import (
 )
 from app.services.whatsapp.interactive import mark_message_read
 from app.queue.user_queue_manager import get_queue_manager
+from app.services.memory_service import maybe_summarize
 from app.services.subscription_service import check_quota, register_message
 from app.services.whatsapp.commands import maybe_handle_command, parse_command
 from app.services.whatsapp.handlers.registry import handle_message
@@ -227,6 +228,13 @@ async def handle_incoming_webhook(payload: dict):
                     conversation.id, processed.content, processed.reply_type, session,
                 )
             await register_message(user, session, tool_calls=tool_calls_used)
+
+            # Best-effort lazy summarization (only fires past a threshold).
+            try:
+                await maybe_summarize(session, user.id, conversation, quota.plan)
+            except Exception as e:
+                logger.warning(f"Summarization skipped: {e}")
+
             await session.commit()
 
             return {

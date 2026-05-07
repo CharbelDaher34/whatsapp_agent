@@ -95,6 +95,25 @@ def _build_system_prompt(user: User, tool_names: list[str]) -> str:
             "tool already knows which image to use.",
         ])
 
+    if "remember" in tool_names or "recall" in tool_names:
+        sections.extend([
+            "",
+            "Memory:",
+            "- The 'Memory about this user' block in the prompt is your long-term recall — "
+            "use it before asking the user something they've already told you.",
+            "- Call `remember` ONLY for stable facts (name, location, timezone, preferences, "
+            "ongoing projects). Skip transient or sensitive details (passwords, financial info).",
+            "- Call `recall` to search memory by topic; call `forget` to drop a memory.",
+        ])
+
+    if "gmail_search" in tool_names:
+        sections.extend([
+            "",
+            "Gmail: call `gmail_search` only when the user asks something that requires "
+            "their email (recent invoices, messages from someone, etc.). If the tool says "
+            "Gmail isn't connected, ask them to connect it from the dashboard.",
+        ])
+
     sections.extend([
         "",
         "Refusal etiquette: if a request is outside this plan, briefly explain the limit "

@@ -49,7 +49,10 @@ PLANS: Dict[str, PlanLimits] = {
         messages_per_month=300,
         history_depth=10,
         model="gpt-4o-mini",
-        tools={"calculator", "ask_buttons", "ask_list", "echo"},
+        tools={
+            "calculator", "ask_buttons", "ask_list", "echo",
+            "remember", "recall", "forget", "weather",
+        },
         inbound_modalities={
             "text", "image", "interactive", "button", "reaction",
             "location", "contacts", "sticker", "unsupported",
@@ -68,7 +71,9 @@ PLANS: Dict[str, PlanLimits] = {
         model="gpt-4o",
         tools={
             "calculator", "ask_buttons", "ask_list", "echo",
+            "remember", "recall", "forget", "weather",
             "text_to_image", "image_to_image",
+            "gmail_search",
         },
         inbound_modalities={
             "text", "image", "interactive", "button", "reaction",

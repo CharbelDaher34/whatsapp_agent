@@ -13,6 +13,8 @@ from app.core.plans import PLANS, get_plan, normalize_tier
 from app.db.session import get_session
 from app.models.user import User
 from app.services.conversation_service import get_or_create_user_conversation
+from app.services.integration_service import get_active as get_integration
+from app.services.memory_service import forget_memory, recall as recall_memories
 from app.services.subscription_service import get_usage_summary
 from app.services.whatsapp.client import send_whatsapp_text
 from app.web.auth import (
@@ -194,13 +196,37 @@ async def dashboard(
     user = await load_current_user(claims, session)
     plan = get_plan(user.subscription_tier)
     usage = await get_usage_summary(user, session)
+
+    # Integrations are gated by plan. Show real connection status when allowed.
+    integrations_enabled = plan.name in ("pro", "max")
+    google_integration = (
+        await get_integration(session, user.id, "google") if integrations_enabled else None
+    )
+
+    memories = await recall_memories(session, user.id, None, limit=20)
+
     return templates.TemplateResponse(
         "dashboard.html",
         _ctx(
             request, active="dashboard", user=claims,
             db_user=user, plan=plan, usage=usage,
+            integrations_enabled=integrations_enabled,
+            google_integration=google_integration,
+            memories=memories,
         ),
     )
+
+
+@router.post("/account/forget")
+async def account_forget(
+    memory_id: int = Form(...),
+    claims: dict = Depends(require_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Delete one memory belonging to the current user."""
+    await forget_memory(session, int(claims["sub"]), memory_id=memory_id)
+    await session.commit()
+    return RedirectResponse("/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/account/downgrade-free")
